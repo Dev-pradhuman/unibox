@@ -1,0 +1,23 @@
+appId: com.unibox.desktop
+productName: Unibox
+directories:
+  output: dist
+  buildResources: build
+files:
+  - out/**/*
+  - node_modules/**/*
+  - package.json
+linux:
+  target:
+    - AppImage
+    - tar.gz
+  category: Network;Chat
+mac:
+  target:
+    - dmg
+    - zip
+  category: public.app-category.social-networking
+win:
+  target:
+    - nsis
+    - zip

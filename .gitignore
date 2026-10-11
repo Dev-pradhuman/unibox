@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+out/
+.vite/
+*.tsbuildinfo
+
+# Temporary files & tests
+test_unibox_data.json
+*.log
+*.tmp*
+
+# OS Files
+.DS_Store
+Thumbs.db
