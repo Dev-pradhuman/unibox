@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto'
 import { BrowserWindow, ipcMain } from 'electron'
 import {
   Account,
@@ -23,7 +24,7 @@ export function registerIpcHandlers(
 
   ipcMain.handle('accounts:add', (_event, input: AccountCreateInput) => {
     const newAccount: Account = {
-      id: `acc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      id: `acc_${randomUUID()}`,
       serviceId: input.serviceId,
       label: input.label.trim() || 'Account',
       color: input.color || '#3b82f6',
@@ -36,13 +37,10 @@ export function registerIpcHandlers(
     }
 
     store.addAccount(newAccount)
+    store.setActiveAccountId(newAccount.id)
+    viewManager.selectAccount(newAccount)
     mainWindow.webContents.send('accounts:updated', store.getAccounts())
-
-    // Auto-select if first account
-    if (store.getAccounts().length === 1) {
-      viewManager.selectAccount(newAccount)
-      mainWindow.webContents.send('view:active-changed', newAccount.id)
-    }
+    mainWindow.webContents.send('view:active-changed', newAccount.id)
 
     return newAccount
   })
@@ -117,6 +115,10 @@ export function registerIpcHandlers(
 
   ipcMain.handle('view:update-bounds', (_event, bounds: ViewBounds) => {
     viewManager.setBounds(bounds)
+  })
+
+  ipcMain.handle('view:set-visible', (_event, visible: boolean) => {
+    viewManager.setViewsVisible(visible)
   })
 
   ipcMain.handle('view:reload', (_event, accountId: string) => {

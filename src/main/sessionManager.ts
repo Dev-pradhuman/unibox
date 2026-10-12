@@ -37,6 +37,11 @@ export class SessionManager {
     return ses
   }
 
+  public removeSession(account: Account): void {
+    const partition = `persist:${account.serviceId}-${account.id}`
+    this.sessions.delete(partition)
+  }
+
   /**
    * Applies security policies, link interception and navigation whitelisting to a WebContents.
    */

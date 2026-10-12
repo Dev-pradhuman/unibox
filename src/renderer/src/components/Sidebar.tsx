@@ -201,90 +201,93 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
               {!isCollapsed && (
                 <div>
-                  {svcAccounts.length === 0 ? (
-                    <div
-                      style={{
-                        padding: '6px 12px 6px 32px',
-                        fontSize: '0.78rem',
-                        color: 'var(--text-dim)',
-                        cursor: 'pointer'
-                      }}
-                      onClick={() => onOpenAddModal(service.id)}
-                    >
-                      + Add account
-                    </div>
-                  ) : (
-                    svcAccounts.map((account) => {
-                      const isActive = account.id === activeAccountId
-                      const indexInAll = allAccountsOrdered.findIndex((a) => a.id === account.id)
-                      const shortcutNumber = indexInAll >= 0 && indexInAll < 9 ? indexInAll + 1 : null
+                  {svcAccounts.map((account) => {
+                    const isActive = account.id === activeAccountId
+                    const indexInAll = allAccountsOrdered.findIndex((a) => a.id === account.id)
+                    const shortcutNumber = indexInAll >= 0 && indexInAll < 9 ? indexInAll + 1 : null
 
-                      return (
-                        <div
-                          key={account.id}
-                          className={`account-item ${isActive ? 'active' : ''}`}
-                          onClick={() => onSelectAccount(account.id)}
-                        >
-                          <div className="account-label-container">
-                            <span
-                              className="account-color-dot"
-                              style={{ backgroundColor: account.color }}
-                            />
-                            <span
-                              style={{
-                                opacity: account.isHibernated ? 0.5 : 1,
-                                fontStyle: account.isHibernated ? 'italic' : 'normal'
-                              }}
-                            >
-                              {account.label}
+                    return (
+                      <div
+                        key={account.id}
+                        className={`account-item ${isActive ? 'active' : ''}`}
+                        onClick={() => onSelectAccount(account.id)}
+                      >
+                        <div className="account-label-container">
+                          <span
+                            className="account-color-dot"
+                            style={{ backgroundColor: account.color }}
+                          />
+                          <span
+                            style={{
+                              opacity: account.isHibernated ? 0.5 : 1,
+                              fontStyle: account.isHibernated ? 'italic' : 'normal'
+                            }}
+                          >
+                            {account.label}
+                          </span>
+                          {account.isMuted && (
+                            <span title="Muted">
+                              <BellOff size={12} color="var(--text-dim)" />
                             </span>
-                            {account.isMuted && (
-                              <span title="Muted">
-                                <BellOff size={12} color="var(--text-dim)" />
-                              </span>
-                            )}
-                            {account.isHibernated && (
-                              <span title="Hibernated">
-                                <Power size={12} color="var(--text-dim)" />
-                              </span>
-                            )}
-                          </div>
+                          )}
+                          {account.isHibernated && (
+                            <span title="Hibernated">
+                              <Power size={12} color="var(--text-dim)" />
+                            </span>
+                          )}
+                        </div>
 
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            {!account.isMuted && account.unreadCount > 0 && (
-                              <span className="badge-count">{account.unreadCount}</span>
-                            )}
-                            {shortcutNumber && (
-                              <span className="shortcut-indicator">⌘{shortcutNumber}</span>
-                            )}
-                            {/* Actions on hover */}
-                            <div
-                              className="account-actions"
-                              style={{ display: 'inline-flex', gap: 2 }}
-                              onClick={(e) => e.stopPropagation()}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {!account.isMuted && account.unreadCount > 0 && (
+                            <span className="badge-count">{account.unreadCount}</span>
+                          )}
+                          {shortcutNumber && (
+                            <span className="shortcut-indicator">⌘{shortcutNumber}</span>
+                          )}
+                          {/* Actions on hover */}
+                          <div
+                            className="account-actions"
+                            style={{ display: 'inline-flex', gap: 2 }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              className="btn-icon"
+                              style={{ width: 22, height: 22 }}
+                              title="Edit account"
+                              onClick={() => onOpenEditModal(account)}
                             >
-                              <button
-                                className="btn-icon"
-                                style={{ width: 22, height: 22 }}
-                                title="Edit account"
-                                onClick={() => onOpenEditModal(account)}
-                              >
-                                <Edit3 size={12} />
-                              </button>
-                              <button
-                                className="btn-icon"
-                                style={{ width: 22, height: 22 }}
-                                title="Delete account"
-                                onClick={() => onDeleteAccount(account.id)}
-                              >
-                                <Trash2 size={12} />
-                              </button>
-                            </div>
+                              <Edit3 size={12} />
+                            </button>
+                            <button
+                              className="btn-icon"
+                              style={{ width: 22, height: 22 }}
+                              title="Delete account"
+                              onClick={() => onDeleteAccount(account.id)}
+                            >
+                              <Trash2 size={12} />
+                            </button>
                           </div>
                         </div>
-                      )
-                    })
-                  )}
+                      </div>
+                    )
+                  })}
+
+                  <div
+                    style={{
+                      padding: '6px 12px 6px 32px',
+                      fontSize: '0.78rem',
+                      color: 'var(--text-dim)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4
+                    }}
+                    onClick={() => onOpenAddModal(service.id)}
+                    title={`Add ${service.name} account`}
+                  >
+                    <Plus size={12} />
+                    <span>Add {service.name} account</span>
+                  </div>
                 </div>
               )}
             </div>

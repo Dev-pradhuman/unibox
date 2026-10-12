@@ -92,6 +92,15 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('resize', updateBounds)
   }, [settings.sidebarCollapsed, updateBounds])
 
+  const isAnyModalOpen = isAccountModalOpen || isSettingsOpen || isQuickSwitcherOpen
+
+  // Hide WebContentsView when modal is open so modal is visible and interactive
+  useEffect(() => {
+    if (window.unibox?.setViewsVisible) {
+      window.unibox.setViewsVisible(!isAnyModalOpen)
+    }
+  }, [isAnyModalOpen])
+
   // Apply theme to document element
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', settings.theme)
@@ -110,7 +119,10 @@ export const App: React.FC = () => {
     if ('id' in data) {
       await window.unibox.updateAccount(data)
     } else {
-      await window.unibox.addAccount(data)
+      const created = await window.unibox.addAccount(data)
+      if (created && created.id) {
+        await window.unibox.selectAccount(created.id)
+      }
     }
   }
 

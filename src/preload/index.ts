@@ -20,6 +20,7 @@ export interface UniboxApi {
 
   // Navigation and view controls
   updateViewBounds: (bounds: ViewBounds) => Promise<void>
+  setViewsVisible: (visible: boolean) => Promise<void>
   reloadAccount: (id: string) => Promise<void>
   navigateBack: (id: string) => Promise<void>
   navigateForward: (id: string) => Promise<void>
@@ -48,6 +49,7 @@ const api: UniboxApi = {
   getActiveAccountId: () => ipcRenderer.invoke('view:get-active-account'),
 
   updateViewBounds: (bounds) => ipcRenderer.invoke('view:update-bounds', bounds),
+  setViewsVisible: (visible) => ipcRenderer.invoke('view:set-visible', visible),
   reloadAccount: (id) => ipcRenderer.invoke('view:reload', id),
   navigateBack: (id) => ipcRenderer.invoke('view:go-back', id),
   navigateForward: (id) => ipcRenderer.invoke('view:go-forward', id),

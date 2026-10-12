@@ -15,6 +15,7 @@ export class ViewManager {
   private views = new Map<string, WebContentsView>()
   private activeAccountId: string | null = null
   private currentBounds: ViewBounds = { x: 260, y: 52, width: 940, height: 748 }
+  private isVisible = true
 
   constructor(
     mainWindow: BrowserWindow,
@@ -37,10 +38,28 @@ export class ViewManager {
     this.refreshActiveViewBounds()
   }
 
-  private refreshActiveViewBounds(): void {
+  public setViewsVisible(visible: boolean): void {
+    this.isVisible = visible
     if (!this.activeAccountId) return
     const activeView = this.views.get(this.activeAccountId)
     if (activeView) {
+      try {
+        activeView.setVisible(visible)
+      } catch (err) {
+        // Fallback if not supported
+      }
+      if (!visible) {
+        activeView.setBounds({ x: 0, y: 0, width: 0, height: 0 })
+      } else {
+        activeView.setBounds(this.currentBounds)
+      }
+    }
+  }
+
+  private refreshActiveViewBounds(): void {
+    if (!this.activeAccountId) return
+    const activeView = this.views.get(this.activeAccountId)
+    if (activeView && this.isVisible) {
       activeView.setBounds(this.currentBounds)
     }
   }
@@ -132,9 +151,20 @@ export class ViewManager {
       view = this.getOrCreateView(account)
     }
 
-    // Attach to window content view and set bounds
-    this.mainWindow.contentView.addChildView(view)
-    view.setBounds(this.currentBounds)
+    // Attach to window content view if not already attached
+    if (!this.mainWindow.contentView.children.includes(view)) {
+      this.mainWindow.contentView.addChildView(view)
+    }
+
+    try {
+      view.setVisible(this.isVisible)
+    } catch (err) {}
+
+    if (this.isVisible) {
+      view.setBounds(this.currentBounds)
+    } else {
+      view.setBounds({ x: 0, y: 0, width: 0, height: 0 })
+    }
 
     this.emitNavigationState(account.id)
   }
@@ -221,15 +251,21 @@ export class ViewManager {
     if (this.activeAccountId !== accountId) return
 
     const view = this.views.get(accountId)
-    if (!view) return
+    if (!view || view.webContents.isDestroyed()) return
+
+    const navHistory = (view.webContents as any).navigationHistory
+    const canGoBack = navHistory ? navHistory.canGoBack() : view.webContents.canGoBack()
+    const canGoForward = navHistory ? navHistory.canGoForward() : view.webContents.canGoForward()
 
     const navState: NavigationState = {
-      canGoBack: view.webContents.canGoBack(),
-      canGoForward: view.webContents.canGoForward(),
+      canGoBack,
+      canGoForward,
       isLoading: view.webContents.isLoading(),
       currentUrl: view.webContents.getURL()
     }
 
-    this.mainWindow.webContents.send('view:nav-state', navState)
+    if (!this.mainWindow.isDestroyed()) {
+      this.mainWindow.webContents.send('view:nav-state', navState)
+    }
   }
 }

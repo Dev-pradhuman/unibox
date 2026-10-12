@@ -71,9 +71,7 @@ export class AppStore {
 
   public addAccount(account: Account): Account {
     this.state.accounts.push(account)
-    if (!this.state.activeAccountId) {
-      this.state.activeAccountId = account.id
-    }
+    this.state.activeAccountId = account.id
     this.persist()
     return account
   }
