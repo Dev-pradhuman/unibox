@@ -11,7 +11,7 @@ export const SERVICES_CONFIG: Record<ServiceId, ServiceDefinition> = {
     allowedDomains: ['web.whatsapp.com', 'whatsapp.com', 'whatsapp.net', 'facebook.com'],
     icon: 'MessageSquare',
     themeColor: '#25D366',
-    titleBadgeRegex: '^\\((\\d+)\\)',
+    titleBadgeRegex: '^[\\(\\[]\\s*(\\d+)\\+?\\s*[\\)\\]]',
     defaultUserAgent: DEFAULT_USER_AGENT,
     description: 'WhatsApp Web messaging'
   },
@@ -22,7 +22,7 @@ export const SERVICES_CONFIG: Record<ServiceId, ServiceDefinition> = {
     allowedDomains: ['instagram.com', 'www.instagram.com', 'facebook.com', 'fbcdn.net'],
     icon: 'Camera',
     themeColor: '#E1306C',
-    titleBadgeRegex: '^\\((\\d+)\\)',
+    titleBadgeRegex: '^[\\(\\[]\\s*(\\d+)\\+?\\s*[\\)\\]]',
     defaultUserAgent: DEFAULT_USER_AGENT,
     description: 'Instagram Direct Messages'
   },
@@ -33,7 +33,7 @@ export const SERVICES_CONFIG: Record<ServiceId, ServiceDefinition> = {
     allowedDomains: ['web.telegram.org', 'telegram.org', 'telegram.me', 't.me'],
     icon: 'Send',
     themeColor: '#2AABEE',
-    titleBadgeRegex: '^\\((\\d+)\\)',
+    titleBadgeRegex: '^[\\(\\[]\\s*(\\d+)\\+?\\s*[\\)\\]]',
     defaultUserAgent: DEFAULT_USER_AGENT,
     description: 'Telegram Web K client'
   },
@@ -44,7 +44,7 @@ export const SERVICES_CONFIG: Record<ServiceId, ServiceDefinition> = {
     allowedDomains: ['discord.com', 'discordapp.com', 'discord.gg', 'discord.media'],
     icon: 'Headphones',
     themeColor: '#5865F2',
-    titleBadgeRegex: '^\\((\\d+)\\)',
+    titleBadgeRegex: '^[\\(\\[]\\s*(\\d+)\\+?\\s*[\\)\\]]',
     defaultUserAgent: DEFAULT_USER_AGENT,
     description: 'Discord Web App'
   },
@@ -55,7 +55,7 @@ export const SERVICES_CONFIG: Record<ServiceId, ServiceDefinition> = {
     allowedDomains: ['threads.net', 'www.threads.net', 'instagram.com'],
     icon: 'AtSign',
     themeColor: '#000000',
-    titleBadgeRegex: '^\\((\\d+)\\)',
+    titleBadgeRegex: '^[\\(\\[]\\s*(\\d+)\\+?\\s*[\\)\\]]',
     defaultUserAgent: DEFAULT_USER_AGENT,
     description: 'Threads by Instagram'
   },
@@ -67,12 +67,11 @@ export const SERVICES_CONFIG: Record<ServiceId, ServiceDefinition> = {
       'mail.google.com',
       'accounts.google.com',
       'google.com',
-      'gstatic.com',
-      'googleusercontent.com'
+      'gstatic.com'
     ],
     icon: 'Mail',
     themeColor: '#EA4335',
-    titleBadgeRegex: '\\((\\d+)\\)',
+    titleBadgeRegex: '[\\(\\[]\\s*(\\d+)\\+?\\s*[\\)\\]]',
     defaultUserAgent: DEFAULT_USER_AGENT,
     description: 'Google Mail'
   }

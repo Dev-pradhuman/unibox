@@ -15,9 +15,13 @@ export class AppStore {
   private filePath: string
   private state: AppState
 
-  constructor() {
-    const userData = app.getPath('userData')
-    this.filePath = path.join(userData, 'unibox_data.json')
+  constructor(customFilePath?: string) {
+    if (customFilePath) {
+      this.filePath = customFilePath
+    } else {
+      const userData = app.getPath('userData')
+      this.filePath = path.join(userData, 'unibox_data.json')
+    }
     this.state = this.load()
   }
 

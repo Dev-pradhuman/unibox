@@ -1,4 +1,4 @@
-import { app, BrowserWindow, globalShortcut, shell } from 'electron'
+import { app, BrowserWindow, globalShortcut, session } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import { AppStore } from './store'
@@ -6,6 +6,7 @@ import { SessionManager } from './sessionManager'
 import { NotificationBridge } from './notificationBridge'
 import { ViewManager } from './viewManager'
 import { registerIpcHandlers } from './ipc'
+import { safeOpenExternal } from './security'
 
 let mainWindow: BrowserWindow | null = null
 let store: AppStore
@@ -35,9 +36,21 @@ function createWindow(): BrowserWindow {
     win.show()
   })
 
+  // Protect popup handling
   win.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
+    safeOpenExternal(details.url)
     return { action: 'deny' }
+  })
+
+  // Protect main window navigation: prevent navigating away from trusted local app
+  win.webContents.on('will-navigate', (event, url) => {
+    const devUrl = process.env['ELECTRON_RENDERER_URL']
+    const isAllowed = is.dev && devUrl ? url.startsWith(devUrl) : url.startsWith('file://') || url.startsWith('app://')
+    if (!isAllowed) {
+      event.preventDefault()
+      console.warn(`[Unibox Security] Blocked unexpected main window navigation to: ${url}`)
+      safeOpenExternal(url)
+    }
   })
 
   // Load renderer
@@ -74,6 +87,11 @@ function registerShortcuts(): void {
 }
 
 app.whenReady().then(() => {
+  // Default deny for default session (used by main window UI shell)
+  session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => {
+    callback(false)
+  })
+
   store = new AppStore()
   mainWindow = createWindow()
 
@@ -81,7 +99,7 @@ app.whenReady().then(() => {
   notificationBridge = new NotificationBridge(mainWindow, store)
   viewManager = new ViewManager(mainWindow, sessionManager, notificationBridge)
 
-  registerIpcHandlers(mainWindow, store, viewManager, notificationBridge)
+  registerIpcHandlers(mainWindow, store, viewManager, notificationBridge, sessionManager)
   registerShortcuts()
 
   notificationBridge.syncBadgeCount()
@@ -115,3 +133,4 @@ app.on('window-all-closed', () => {
     app.quit()
   }
 })
+

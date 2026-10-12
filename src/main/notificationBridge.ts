@@ -1,6 +1,11 @@
 import { app, BrowserWindow, Notification } from 'electron'
 import { Account, NotificationPayload } from '../shared/types'
 import { AppStore } from './store'
+import {
+  parseUnreadFromTitle,
+  sanitizeBadgeCount,
+  sanitizeNotificationPayload
+} from './security'
 
 export class NotificationBridge {
   private mainWindow: BrowserWindow
@@ -20,59 +25,72 @@ export class NotificationBridge {
    * Handle unread count updates reported by service preload or title observer.
    */
   public handleUnreadCountUpdate(accountId: string, count: number): void {
+    const safeCount = sanitizeBadgeCount(count)
     const account = this.store.getAccount(accountId)
     if (!account) return
 
-    if (account.unreadCount !== count) {
-      this.store.updateAccount(accountId, { unreadCount: count })
+    if (account.unreadCount !== safeCount) {
+      this.store.updateAccount(accountId, { unreadCount: safeCount })
       this.syncBadgeCount()
       this.broadcastAccountsUpdated()
     }
   }
 
   /**
-   * Handles title changes and parses unread count using regex.
+   * Handles title changes and parses unread count using robust parser.
    */
   public handleTitleUpdate(accountId: string, title: string, regexPattern?: string): void {
     if (!title) return
-    const pattern = regexPattern || '[\\(\\[]\\s*(\\d+)\\+?\\s*[\\)\\]]'
-    try {
-      const regex = new RegExp(pattern)
-      const match = title.match(regex)
-      const count = match && match[1] ? parseInt(match[1], 10) : 0
-      this.handleUnreadCountUpdate(accountId, isNaN(count) ? 0 : count)
-    } catch {
-      // Fallback
-    }
+    const count = parseUnreadFromTitle(title, regexPattern)
+    this.handleUnreadCountUpdate(accountId, count)
+  }
+
+  /**
+   * Evaluates if a notification should be delivered based on account muting,
+   * global muting, and payload sanity.
+   */
+  public shouldDeliverNotification(payload: NotificationPayload): boolean {
+    const settings = this.store.getSettings()
+    if (settings.globalMute) return false
+
+    const account = this.store.getAccount(payload.accountId)
+    if (!account || account.isMuted) return false
+
+    const sanitized = sanitizeNotificationPayload(payload)
+    return sanitized !== null
   }
 
   /**
    * Handles web notification forwarded from service preload script.
    */
-  public handleNotification(payload: NotificationPayload): void {
-    const settings = this.store.getSettings()
-    if (settings.globalMute) return
+  public handleNotification(rawPayload: NotificationPayload): void {
+    if (!this.shouldDeliverNotification(rawPayload)) return
 
-    const account = this.store.getAccount(payload.accountId)
-    if (!account || account.isMuted) return
+    const account = this.store.getAccount(rawPayload.accountId)
+    if (!account) return
+
+    const sanitized = sanitizeNotificationPayload(rawPayload)
+    if (!sanitized) return
 
     if (!Notification.isSupported()) return
 
     const notification = new Notification({
-      title: `${account.label}: ${payload.title}`,
-      body: payload.body,
+      title: `${account.label}: ${sanitized.title}`,
+      body: sanitized.body,
       silent: false
     })
 
     notification.on('click', () => {
-      if (this.mainWindow.isMinimized()) {
-        this.mainWindow.restore()
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        if (this.mainWindow.isMinimized()) {
+          this.mainWindow.restore()
+        }
+        this.mainWindow.show()
+        this.mainWindow.focus()
       }
-      this.mainWindow.show()
-      this.mainWindow.focus()
 
       if (this.onAccountFocusRequested) {
-        this.onAccountFocusRequested(payload.accountId)
+        this.onAccountFocusRequested(rawPayload.accountId)
       }
     })
 
@@ -91,16 +109,16 @@ export class NotificationBridge {
     try {
       if (process.platform === 'darwin' && app.dock) {
         app.dock.setBadge(totalUnread > 0 ? `${totalUnread}` : '')
-      } else {
+      } else if (app.setBadgeCount) {
         app.setBadgeCount(totalUnread)
       }
-    } catch (err) {
+    } catch {
       // Non-fatal if platform does not support badge count
     }
   }
 
   private broadcastAccountsUpdated(): void {
-    if (!this.mainWindow.isDestroyed()) {
+    if (this.mainWindow && !this.mainWindow.isDestroyed()) {
       this.mainWindow.webContents.send('accounts:updated', this.store.getAccounts())
     }
   }

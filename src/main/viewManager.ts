@@ -178,15 +178,23 @@ export class ViewManager {
 
   public navigateBack(accountId: string): void {
     const view = this.views.get(accountId)
-    if (view && view.webContents.canGoBack()) {
-      view.webContents.goBack()
+    if (view) {
+      if (view.webContents.navigationHistory?.canGoBack()) {
+        view.webContents.navigationHistory.goBack()
+      } else if (typeof (view.webContents as any).canGoBack === 'function' && (view.webContents as any).canGoBack()) {
+        (view.webContents as any).goBack()
+      }
     }
   }
 
   public navigateForward(accountId: string): void {
     const view = this.views.get(accountId)
-    if (view && view.webContents.canGoForward()) {
-      view.webContents.goForward()
+    if (view) {
+      if (view.webContents.navigationHistory?.canGoForward()) {
+        view.webContents.navigationHistory.goForward()
+      } else if (typeof (view.webContents as any).canGoForward === 'function' && (view.webContents as any).canGoForward()) {
+        (view.webContents as any).goForward()
+      }
     }
   }
 
@@ -216,8 +224,11 @@ export class ViewManager {
       }
     }
 
-    if (this.activeAccountId === account.id) {
-      this.mainWindow.contentView.addChildView(view)
+    if (this.activeAccountId === account.id || this.activeAccountId === null) {
+      this.activeAccountId = account.id
+      if (!this.mainWindow.contentView.children.includes(view)) {
+        this.mainWindow.contentView.addChildView(view)
+      }
       view.setBounds(this.currentBounds)
     }
   }
@@ -264,7 +275,7 @@ export class ViewManager {
       currentUrl: view.webContents.getURL()
     }
 
-    if (!this.mainWindow.isDestroyed()) {
+    if (this.mainWindow && !this.mainWindow.isDestroyed() && this.mainWindow.webContents) {
       this.mainWindow.webContents.send('view:nav-state', navState)
     }
   }

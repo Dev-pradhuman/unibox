@@ -1,13 +1,13 @@
-import { ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webFrame } from 'electron'
 
 /**
  * Service Preload Script
  * Injected into each isolated WebContentsView session.
  * 1. Bridges document.title mutations to extract unread badge counts.
- * 2. Overrides the web Notification API to forward notifications to the native host.
+ * 2. Overrides the web Notification API in the Main World so web apps dispatch
+ *    notifications to Unibox via an isolated contextBridge bridge.
  */
 
-// Track last reported count to avoid redundant IPC noise
 let lastReportedCount = 0
 
 function parseUnreadCountFromTitle(title: string): number {
@@ -28,20 +28,20 @@ function parseUnreadCountFromTitle(title: string): number {
   return 0
 }
 
-function checkAndReportUnreadCount() {
+function checkAndReportUnreadCount(): void {
   try {
     const count = parseUnreadCountFromTitle(document.title)
     if (count !== lastReportedCount) {
       lastReportedCount = count
       ipcRenderer.send('service:unread-count', count)
     }
-  } catch (err) {
+  } catch {
     // Silently handle any access error
   }
 }
 
 // 1. Observe title changes
-function initTitleObserver() {
+function initTitleObserver(): void {
   checkAndReportUnreadCount()
 
   const titleElement = document.querySelector('title')
@@ -60,43 +60,67 @@ function initTitleObserver() {
   setInterval(checkAndReportUnreadCount, 2000)
 }
 
-// 2. Intercept native Notification constructor
-function initNotificationProxy() {
+// 2. Intercept native Notification constructor in Main World
+function initNotificationProxy(): void {
   try {
-    const NativeNotification = (window as any).Notification
-
-    class UniboxNotification extends EventTarget {
-      static permission: NotificationPermission = 'granted'
-
-      static requestPermission(
-        callback?: (permission: NotificationPermission) => void
-      ): Promise<NotificationPermission> {
-        if (callback) callback('granted')
-        return Promise.resolve('granted')
-      }
-
-      constructor(title: string, options: NotificationOptions = {}) {
-        super()
+    // Expose a strictly constrained one-way notification bridge in Main World
+    contextBridge.exposeInMainWorld('__uniboxPrivateBridge', {
+      notify: (payload: { title: string; body: string; icon?: string }) => {
+        if (!payload || typeof payload !== 'object') return
         ipcRenderer.send('service:notification', {
-          title,
-          body: options.body || '',
-          icon: options.icon
+          title: typeof payload.title === 'string' ? payload.title.slice(0, 300) : '',
+          body: typeof payload.body === 'string' ? payload.body.slice(0, 2000) : '',
+          icon: typeof payload.icon === 'string' ? payload.icon.slice(0, 1000) : undefined
         })
       }
+    })
 
-      close() {}
-    }
+    // Inject the Notification constructor replacement into Main World (World ID 0)
+    webFrame.executeJavaScript(`
+      (() => {
+        if (window.__uniboxNotificationPatched) return;
+        window.__uniboxNotificationPatched = true;
 
-    // Preserve static properties if any
-    if (NativeNotification) {
-      Object.defineProperty(UniboxNotification, 'maxActions', {
-        value: NativeNotification.maxActions || 2
-      })
-    }
+        class UniboxProxyNotification extends EventTarget {
+          static permission = 'granted';
+          static get permission() { return 'granted'; }
 
-    ;(window as any).Notification = UniboxNotification
+          static requestPermission(callback) {
+            if (typeof callback === 'function') callback('granted');
+            return Promise.resolve('granted');
+          }
+
+          constructor(title, options = {}) {
+            super();
+            try {
+              if (window.__uniboxPrivateBridge && typeof window.__uniboxPrivateBridge.notify === 'function') {
+                window.__uniboxPrivateBridge.notify({
+                  title: String(title || ''),
+                  body: String(options?.body || ''),
+                  icon: typeof options?.icon === 'string' ? options.icon : undefined
+                });
+              }
+            } catch (err) {
+              console.warn('[Unibox] Notification dispatch error:', err);
+            }
+          }
+
+          close() {}
+        }
+
+        try {
+          Object.defineProperty(window, 'Notification', {
+            value: UniboxProxyNotification,
+            writable: true,
+            configurable: true
+          });
+        } catch {
+          window.Notification = UniboxProxyNotification;
+        }
+      })();
+    `)
   } catch (err) {
-    console.warn('[Unibox] Failed to patch Notification constructor:', err)
+    console.warn('[Unibox] Failed to initialize notification proxy:', err)
   }
 }
 
